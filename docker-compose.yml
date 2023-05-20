@@ -1,0 +1,39 @@
+version: '3'
+
+services:
+  db:
+    container_name: ${APP_NAME}_db
+    image: docker.io/mysql:8
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+    volumes:
+      - './db:/var/lib/mysql'
+    ports:
+      - ${MYSQL_PORT}:3306
+    networks:
+      net:
+        aliases:
+          - ${APP_NAME}_db
+  api:
+    container_name: ${APP_NAME}_api
+    build:
+      context: docker-compose
+      dockerfile: Dockerfile
+    image: fastapi:parking
+    platform: linux/x86_64
+    ports:
+      - ${HTTP_PORT}:8000
+    volumes:
+      - ./${DIR_APP}:/code/app
+    depends_on:
+      - db
+    networks:
+      net:
+        aliases:
+          - ${APP_NAME}_api
+    working_dir: /code/app
+    command: uvicorn main:app --reload --workers 1 --host 0.0.0.0 --port 8000
+networks:
+  net:
+    driver: bridge
