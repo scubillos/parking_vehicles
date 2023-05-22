@@ -67,7 +67,7 @@ async def get_all():
         })
     return response
 
-@router.get("/vehicle/{vehicle_id}")
+@router.get("/vehicle/{vehicle_id}", )
 async def get(vehicle_id: int):
     result = conn.execute(
         Vehicle.select().where(Vehicle.c.id == vehicle_id)
@@ -103,6 +103,15 @@ async def create(vehicle_obj: VehicleModel):
         "status": result.status,
         "type": result.type,
     }
+
+@router.put("/vehicle/{id}")
+async def update_vehicle(vehicle_id: int, vehicle_obj: VehicleModel):
+    result = conn.execute(
+        Vehicle.select().where(Vehicle.c.id == vehicle_id)
+    ).first()
+
+    respnde = update(Vehicle).where(Vehicle.id == vehicle_id).values(name=new_name)
+    return "a"
 
 app.include_router(router)
 
