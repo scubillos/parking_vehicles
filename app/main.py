@@ -114,9 +114,3 @@ async def update_vehicle(vehicle_id: int, vehicle_obj: VehicleModel):
     return "a"
 
 app.include_router(router)
-
-# TODO: Consultar todos los vehiculos [GET]
-# TODO: Crear vehiculos [POST]
-# TODO: Consultar un vehiculo [Buscar por id]
-# TODO: Consultar un vehiculo [Buscar por placa]
-# TODO: Editar vehiculos [PUT]
