@@ -7,12 +7,24 @@ from sqlalchemy.sql.sqltypes import Integer, String
 from sqlalchemy.orm import sessionmaker
 from pydantic import BaseModel
 
+import logging
+
 from dotenv import load_dotenv
 
 load_dotenv()
 
+# Logs
+logging.basicConfig(format='{"time": "%(asctime)s", "message": "%(message)s"}')
+logger = logging.getLogger()
+debugLevel = os.getenv("DEBUG")
+if debugLevel == "INFO":
+    logger.setLevel(logging.INFO)
+else:
+    if debugLevel == "DEBUG":
+        logger.setLevel(logging.DEBUG)
+
 # Init FastAPI
-app = FastAPI()
+app = FastAPI(debug=True)
 router = APIRouter(prefix='/api')
 
 db_host = os.getenv("DB_HOST")
@@ -23,6 +35,7 @@ db_name = os.getenv("DB_NAME")
 
 # Database
 str_conn = "mysql+pymysql://"+db_user+":"+db_password+"@"+db_host+":"+db_port+"/"+db_name
+
 engine = create_engine(str_conn)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -43,6 +56,7 @@ Vehicle = Table(
 meta.create_all(engine)
 #conn = engine.connect()
 conn = SessionLocal()
+logger.info('Conexion a base de datos completada')
 
 # Models
 class VehicleModel(BaseModel):
@@ -65,6 +79,7 @@ async def get_all():
             "status": vehicle.status,
             "type": vehicle.type,
         })
+    logger.info('Vehiculos retornados exitosamente')
     return response
 
 @router.get("/vehicle/{vehicle_id}", )
