@@ -1,0 +1,93 @@
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+
+def NAME_IMAGE="public.ecr.aws/a6j3l8a4/parking-vehiculos"
+def VERSION_IMAGE="1.${env.BUILD_NUMBER}"
+def IMAGE_VERSION=""
+def NAME_YAML_TO_MODIFY="deployment.yaml"
+pipeline {
+    agent any
+
+    stages {
+        stage('Clean workspace') {
+            steps {
+                cleanWs()
+            }
+        }
+        stage('Git clone Repository') {
+            steps {
+                echo 'Cloning repository...'
+                checkout scmGit(branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[credentialsId: '20c36f0c-7253-42ae-a03d-b61afda0c1ba', url: 'git@github.com:crios925/vehiculos-cd.git']])
+                echo 'Path'
+                sh 'pwd'
+            }
+        }
+        stage('Get lastest image name') {
+            steps {
+                script {
+                    IMAGE_VERSION = Jenkins.instance.getItem('parking-vehiculos-ci').lastSuccessfulBuild.number
+                    echo "Avaliable version: ${IMAGE_VERSION}"
+                }
+            }
+        }
+        stage('Change variable name image version') {
+            steps {
+                script {
+                    String pathDeployment = sh (returnStdout: true, script: 'pwd').trim() + "//${NAME_YAML_TO_MODIFY}";
+                    Path path = Paths.get(pathDeployment);
+                    StringBuilder builder = new StringBuilder();
+                    List<String> lines = Files.readAllLines(path, StandardCharsets.UTF_8);
+                    for (String line : lines) {
+                        if (line.contains("image: public.ecr.aws/a6j3l8a4/parking-vehiculos")) {
+                            builder.append("          image: public.ecr.aws/a6j3l8a4/parking-vehiculos:1.${IMAGE_VERSION}");
+                        } else {
+                            builder.append(line);
+                        }
+                        builder.append("\n");
+                    }
+                    Writer writer = null;
+            
+                    try {
+                        writer = new BufferedWriter(new OutputStreamWriter(
+                                new FileOutputStream(path.toString()), "utf-8"));
+                        writer.write(builder.toString());
+                    } catch (IOException ex) {
+                        // Report
+                    } finally {
+                        try {
+                            writer.close();
+                        } catch (Exception ex) {/*ignore*/}
+                    }
+                    echo "============================ YML CONTENT ========================================"
+                    String yamlContent = builder.toString();
+                    echo "${yamlContent}"
+                    echo "============================ YML CONTENT ========================================"
+                }
+            }
+        }
+        stage('Push changes') {
+            steps {
+                script {
+                    echo "============"
+                    echo pwd
+                    echo "============"
+                    String version = "version-1.${IMAGE_VERSION}"
+                    String commitCommand = "git commit -m '${version}'"
+                    echo "command commit: ${commitCommand}"
+                    withCredentials([usernameColonPassword(credentialsId: '9afbe348-603d-47e1-89a7-1de27bb2d541', variable: '')]) {
+                        sh 'pwd'
+                        sh "git checkout -b main origin/main"
+                        sh 'git pull origin main'
+                        sh "git add ${NAME_YAML_TO_MODIFY}"
+                        sh "${commitCommand}"
+                        sh "git push origin main"
+                    }
+                }
+            }
+        }
+    }
+}

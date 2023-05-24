@@ -1,0 +1,55 @@
+def NAME_IMAGE="public.ecr.aws/a6j3l8a4/parking-vehiculos"
+def VERSION_IMAGE="1.${env.BUILD_NUMBER}"
+pipeline {
+    agent any
+
+    stages {
+        stage('Git clone Repository') {
+            steps {
+                echo 'Cloning repository...'
+                checkout scmGit(branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[credentialsId: 'bd67afc4-4842-4129-aad1-8462a5a961fd', url: 'git@github.com:scubillos/parking_vehicles.git']])
+                echo 'Path'
+                sh 'pwd'
+            }
+        }
+        stage('Delete oldest image from local machine') {
+            steps {
+                echo "Starting delete"
+                script {
+                    String outPut = sh (returnStdout: true, script: 'sudo docker images "public.ecr.aws/a6j3l8a4/parking-vehiculos" -a -q').trim();
+                    if(outPut != ""){
+                        echo "Deleting image"
+                        String idImage = outPut.split("\n")[0];
+                        sh "sudo docker rmi --force ${idImage}"
+                    }
+                    echo "salida: ${outPut}"
+                }
+                echo "Ending delete"
+            }
+        }
+        stage('Build image') {
+            steps {
+                echo 'Building image'
+                sh "sudo docker build -t ${NAME_IMAGE}:${VERSION_IMAGE} ."
+            }
+        }
+        stage('Login aws') {
+            steps {
+                echo "user name"
+                sh "whoami"
+                sh 'sudo aws ecr-public get-login-password --region us-east-1 | sudo docker login --username AWS --password-stdin public.ecr.aws/a6j3l8a4'
+            }
+        }
+        stage('Tag image aws') {
+            steps {
+                sh "sudo docker tag ${NAME_IMAGE}:${VERSION_IMAGE} ${NAME_IMAGE}:${VERSION_IMAGE}"
+            }
+        }
+        
+        stage('Push Image') {
+            steps {
+                sh "sudo docker push ${NAME_IMAGE}:${VERSION_IMAGE}"
+            }
+        }
+    }
+}
